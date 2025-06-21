@@ -6,8 +6,9 @@
       <UButton label="Add Task" color="primary" @click="addTask" />
     </div>
     <div v-for="task in tasks" :key="task.id" class="mb-2 flex items-center">
+      <UCheckbox v-model="task.completed" @change="updateTask(task)" />
       <UButton icon="i-lucide-trash" color="error" class="ml-2" @click="deleteTask(task.id)" />
-      <span>{{ task.title }}</span>
+      <span :class="{ 'line-through': task.completed }">{{ task.title }}</span>
     </div>
   </div>
 </template>
@@ -40,6 +41,12 @@ async function deleteTask(id) {
   const {error} = await supabase.from('tasks').delete().eq('id', id);
   if (error) console.error(error);
   else await fetchTasks();
+}
+
+async function updateTask(task) {
+  const {error} = await supabase.from('tasks').update({completed: task.completed}).eq('id', task.id);
+  if (error) console.error(error);
+  else tasks.value = data;
 }
 
 onMounted(fetchTasks);
