@@ -3,7 +3,15 @@
     <div class="max-w-md w-full mx-auto p-4">
       <UCard class="p-6 bg-blend-darken shadow-md rounded-lg">
         <template #header>
-          <h1 class="text-2xl font-bold mb-1 text-center">To-Do List</h1>
+          <div class="flex justify-between items-center">
+            <h1 class="text-2xl font-bold mb-1">To-Do List</h1>
+            <UButton 
+              label="Logout" 
+              color="gray" 
+              variant="ghost" 
+              @click="handleLogout"
+            />
+          </div>
         </template>
         <div class="mb-2">
           <UInput v-model="newTask" placeholder="Enter a new task" class="mr-2" />
@@ -26,17 +34,30 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+
+// Supabase setup
 const supabase = useSupabaseClient();
+const user = useSupabaseUser()
+
+// Redirect to login if not authenticated, fetch tasks when authenticated
+watch(user, (newUser) => {
+  if (!newUser) {
+    navigateTo('/login')
+  } else {
+    fetchTasks()
+  }
+}, { immediate: true })
 const newTask = ref('');
 const tasks = ref([]);
 const isEditing = ref({});
 const editedTask = ref('');
 
 async function addTask() {
-  if (newTask.value.trim()) {
+  if (newTask.value.trim() && user.value) {
     const { error } = await supabase.from('tasks').insert({
       title: newTask.value,
-      completed: false
+      completed: false,
+      user_id: user.value.id
     });
     if (error) console.error(error);
     else newTask.value = '';
@@ -73,10 +94,25 @@ async function saveEdit(task) {
 }
 
 async function fetchTasks() {
-  const { data, error } = await supabase.from('tasks').select('*');
-  if (error) console.error(error);
-  else tasks.value = data;
+  if (!user.value) return;
+  console.log('Fetching tasks for user:', user.value.id);
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', user.value.id);
+  console.log('Tasks data:', data, 'Error:', error);
+  if (error) console.error('Error fetching tasks:', error);
+  else tasks.value = data || [];
 }
 
-onMounted(fetchTasks);
+async function handleLogout() {
+  const { error } = await supabase.auth.signOut()
+  if (error) {
+    console.error('Error logging out:', error)
+  } else {
+    await navigateTo('/login')
+  }
+}
+
+// fetchTasks is now called in the user watcher
 </script>
